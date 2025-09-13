@@ -4,8 +4,7 @@
 /build
 
 
-#File Important 
-app.module.ts 
+
 # Logs
 logs
 *.log
