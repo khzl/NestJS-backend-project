@@ -4,17 +4,19 @@ import { Repository } from "typeorm";
 import { User , UserRole } from "./entities/user.entity";
 import { CreateUserDto } from "./dto/create-user.dto";
 import * as bcrypt from 'bcrypt';
+import { QueryUserDto } from "./dto/query-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
 
 @Injectable()
 export class UsersService{
     constructor(
         @InjectRepository(User)
-        private readonly userRepository: Repository<User>,
-    ){}
+        private readonly userRepository: Repository<User>){}
 
-    // 1- create()
-    async create(createUserDto: CreateUserDto): Promise<User>{
+    // 1- create User
+    async createUser(createUserDto: CreateUserDto): Promise<User>{
         const { email , name , password , role } = createUserDto;
+
         const existingUser = await this.userRepository.findOne({
             where: { email: email },
         });
@@ -33,71 +35,98 @@ export class UsersService{
         });
 
         return this.userRepository.save(user);
+        // ! I think here it will return the password and this is a security issue 
+        //*  the solution for the above security issue is to add @exclude  decorator that excludes the password field
+        //*  from being returned whenever there is a user object in the api response even if the password is hashed
     }
 
-    // 2- findAll()
-    async findAll(offset: number = 1 , limit: number = 10): Promise<{}>{
-        const [data , count] = await this.userRepository.findAndCount({
-            skip: offset,
-            take: limit,
-            order: { createdAt: 'DESC'},
-        });
+    // 2- GetAll User
+    async GetAllUsers(queryUserDto:QueryUserDto):Promise<User[]>{
+        const {page = 1, limit = 10} = queryUserDto;
+        const queryBuilder = this.userRepository.createQueryBuilder('user');
 
-        return {
-            data,
-            count,
-        };
+        const skip = (page - 1) * limit;
+        queryBuilder.skip(skip).take(limit);
+        const users = await queryBuilder.getMany();
+        return users;
     }
 
 
-    // 3- findOne()
-    async findOne(id: number): Promise<User>{
-        const user = await this.userRepository.findOne({
-            where: {id : id},
-        });
+    // 3- Get One User By Id 
+    async GetOneUser(id: number): Promise<User | null>{
+        const user = await this.userRepository.findOne({where: {id : id},});
 
         if (!user) {
-            throw new NotFoundException('User Not Found');
+            throw new NotFoundException(`user with id: ${id} not found`);
         }
 
         return user;
     }
 
-    // 4- update()
-    async update(id: number, updateData: Partial<CreateUserDto>): Promise<User>{
-        const user = await this.findOne(id);
+    // 4- update User
+    async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<User>{
+        const {name, email, password, role} = updateUserDto;
+        const userToUpdate = await this.userRepository.findOne({
+            where: {id:id}
+        });
+        if (!userToUpdate){
+            throw new NotFoundException(`User with id: ${id} Not Found`);
+        }
+
+        if (name !== undefined){
+            userToUpdate.name = name.trim();
+        }
+
+        if (email !== undefined){
+            userToUpdate.email = email.trim();
+        }
+        
+        if (password !== undefined){
+            const hashedPassword = await bcrypt.hash(userToUpdate.password,10);
+            userToUpdate.password = hashedPassword;
+        }
+
+        return this.userRepository.save(userToUpdate);
+    }
+
+    // 5- remove user 
+    async remove(id: number){
+        const userToRemove = await this.userRepository.findOne({where:{id:id}});
+        
+        if (!userToRemove){
+            throw new NotFoundException(`user with id ${id} Not Found`);
+        }
+
+        return this.userRepository.remove(userToRemove);
+
+    }
+
+    // Add these Method to your existing usersService
+    async findById(id: number): Promise<User | null>{
+        return await this.userRepository.findOne({where: {id}});
+    }
+
+    async findByEmail(email: string): Promise<User | null>{
+        return await this.userRepository.findOne({where: {email}});
+    }
+
+    async updatePassword(id:number,password:string): Promise<User>{
+        const user = await this.userRepository.findOne({where: {id}});
 
         if (!user){
-            throw new NotFoundException(`User With id ${id} Not Found`);
+            throw new Error("User Not Found!");
         }
 
-        // Destructure only allowed fields 
-        const {email , name} = updateData;
-
-        // Check email uniqueness if email is changed 
-        if (email && email !== user.email){
-            const existingUser = await this.userRepository.findOne({
-                where: {email},
-            });
-
-            if (existingUser){
-                throw new ConflictException('Email already exists');
-            }
-        }
-
-        // assign only allowed fields 
-        if (name !== undefined)
-             user.name = name;
-        if (email !== undefined)
-             user.email = email;
-
+        user.password = password;
         return this.userRepository.save(user);
     }
 
-    // 5- remove()
-    async remove(id: number): Promise<{ message: string}>{
-        const user = await this.findOne(id);
-        await this.userRepository.remove(user);
-        return { message: 'User Deleted Successfully'};
-    }
+    
 }
+
+// To Do 
+// 1- create user
+// 2- get all user
+// 3- get one user 
+// 4- update user 
+// 5- remove user 

@@ -1,38 +1,58 @@
-import { Controller, Body, Post , Get , Param , Delete , Put , Query } from "@nestjs/common";
+import { 
+    Controller,
+    Body,
+    Post,
+    Get,
+    Param,
+    Delete,
+    Put,
+    Query,
+    ParseIntPipe, 
+    Patch,
+    HttpCode,
+    HttpStatus
+} from "@nestjs/common";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UsersService } from "./users.service";
+import { QueryUserDto } from "./dto/query-user.dto";
+import { User } from "./entities/user.entity";
+import { UpdateUserDto } from "./dto/update-user.dto";
 
 
 @Controller('users')
 export class UsersController{
     constructor(private readonly usersService: UsersService){}
 
-    // 1- create() 
+    // 1- create user 
     @Post()
     async create(@Body() createUserDto: CreateUserDto){
-        return this.usersService.create(createUserDto);
+        return this.usersService.createUser(createUserDto);
     }
 
-    // 2- findAll()
+    // 2- get all user
     @Get()
-    async findAll(@Query('offset') offset: number = 1 , @Query('limit') limit: number = 10){
-        return this.usersService.findAll(offset,limit);
-    }
-    // 3- findOne()
-    @Get(':id')
-    async findOne(@Param('id') id: number){
-        return this.usersService.findOne(id);
-    }
-    // 4- update()
-    @Put(':id')
-    async update(@Param('id') id: number , @Body() updateUserDto: Partial<CreateUserDto>){
-        return this.usersService.update(id, updateUserDto);
+    async getAll(@Query() queryUserDto:QueryUserDto): Promise<User[]>{
+        return this.usersService.GetAllUsers(queryUserDto);
     }
 
-    // 5- remove()
+    // 3- get one user 
+    @Get(':id')
+    async getOne(@Param('id' , ParseIntPipe) id: number):Promise<User | null>{
+        return this.usersService.GetOneUser(id);
+    }
+    
+    // 4- update user 
+    @Patch(':id')
+    async update(@Param('id' , ParseIntPipe) id: number,
+    @Body() updateUserDto: UpdateUserDto): Promise<User>{
+        return this.usersService.updateUser(id, updateUserDto);
+    }
+
+    // 5- remove user
     @Delete(':id')
-    async remove(@Param('id') id: number){
-        return this.usersService.remove(id);
+    @HttpCode(HttpStatus.NO_CONTENT) // this is for best practice
+    async remove(@Param('id' , ParseIntPipe) id: number): Promise<void>{
+        await this.usersService.remove(id);
     }
     
 }

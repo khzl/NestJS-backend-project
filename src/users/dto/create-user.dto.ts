@@ -2,6 +2,7 @@ import { IsString , IsEmail , IsEnum , IsOptional , MinLength } from "class-vali
 import { UserRole } from "../entities/user.entity";
 
 export class CreateUserDto{
+    
     @IsString()
     name: string;
 

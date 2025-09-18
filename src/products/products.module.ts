@@ -2,14 +2,15 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ProductsService } from "./products.service";
 import { ProductsController } from "./products.controller";
-import { Product } from "./entities/product.entity";
-import { Category } from "src/categories/entities/category.entity";
+import { Products } from "./entities/product.entity";
+import { CategoriesModule } from "../categories/categories.module";
 
 @Module({
-  // InjectRepository(category)
-  imports: [TypeOrmModule.forFeature([Product, Category])],
+  imports: [
+    TypeOrmModule.forFeature([Products]),CategoriesModule],
   controllers: [ProductsController],
   providers: [ProductsService],
-  exports: [ProductsService], // optional if used in other modules
+  exports: [ProductsService],
 })
+
 export class ProductsModule {}

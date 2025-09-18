@@ -4,7 +4,8 @@ import { Repository } from "typeorm";
 import { Category } from "./entities/category.entity";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
-
+import * as fs from 'fs';
+import * as path from 'path';
 @Injectable()
 export class CategoriesService{
     constructor(
@@ -12,38 +13,44 @@ export class CategoriesService{
         private readonly categoryRepository: Repository<Category>,
     ){}
 
-    // 1- create()
-    async create(createCategoryDto: CreateCategoryDto) : Promise<Category>{
-        const { name } = createCategoryDto;
+    // 1- create category
+    async createCategory(createCategoryDto: CreateCategoryDto,
+        image?: Express.Multer.File,
+    ) : Promise<Category>{
+        const { name , description } = createCategoryDto;
+        console.log('CreateCategoryDto: ' , createCategoryDto); // Debug Log
+        console.log('Image: ' , image); // Debug Log
 
         // check uniqueness of name 
         const existingCategory = await this.categoryRepository.findOne({
-            where: {name},
+            where: {name:name},
         });
 
         if (existingCategory){
-            throw new ConflictException('Category name already exists');
+            throw new ConflictException(`The Category ${name} already exists`);
         }
 
-        const category = this.categoryRepository.create({name});
+        const category = this.categoryRepository.create({
+            name,
+            description : description,
+            image: `/uploads/categories/${image ? image.filename : null}`, 
+        });
+
         return this.categoryRepository.save(category);
     }
 
-    // 2- findAll()
-    async findAll(offset: number = 0, limit: number = 10): Promise<{}>{
-        const [data, count] = await this.categoryRepository.findAndCount({
-            skip: offset,
-            take: limit,
-            order: {createdAt: 'DESC'},
-        });
-
-        return {data,count};
+    // 2- GetAll categories
+    async GetAll(): Promise<Category[]>{
+        const queryBuilder = this.categoryRepository.createQueryBuilder('category');
+        const categories = await queryBuilder.getMany();
+        return categories;
     }
 
-    // 3- findOne()
-    async findOne(id:number): Promise<Category>{
+    // 3- GetOne category
+    async GetOne(id:number): Promise<Category>{
         const category = await this.categoryRepository.findOne({
-            where: {id},
+            where: {id:id},
+            relations: ['products'],
         });
 
         if (!category){
@@ -53,34 +60,78 @@ export class CategoriesService{
         return category;
     }
 
-    // 4- update()
-    async update(id:number, updateData:UpdateCategoryDto): Promise<Category>{
-        const category = await this.findOne(id);
+    // 4- update category
+    async update(id:number,
+        updateCategoryDto:UpdateCategoryDto,
+        image?: Express.Multer.File,): Promise<Category>{
+        const {name , description} = updateCategoryDto;
 
-        if (!category){
+        const categoryToUpdate = await this.categoryRepository.findOne({
+            where: {id:id}
+        });
+
+        if (!categoryToUpdate){
+            // Delete uploaded image if category not found 
+            if (image){
+                this.deleteImageFile(image.path);
+            }
             throw new NotFoundException(`Category With id ${id} Not Found`);
         }
 
         // check uniqueness if name is updated 
-        if (updateData.name && updateData.name !== category.name){
+        if (name && name !== categoryToUpdate.name){
             const existingCategory = await this.categoryRepository.findOne({
-                where: {name: updateData.name},
+                where: {name:name},
             });
 
             if (existingCategory){
+                // Delete uploaded image if name conflict
+                if (image){
+                    this.deleteImageFile(image.path);
+                }
                 throw new ConflictException('Category name already exists');
             }
-
-            category.name = updateData.name;
         }
 
-        return this.categoryRepository.save(category);
+        // delete old image if new image is uploaded 
+        if (image && categoryToUpdate.image){
+            this.deleteImageFile(`./uploads/categories/${categoryToUpdate.image}`);
+        }
+
+        categoryToUpdate.name = name || categoryToUpdate.name;
+        categoryToUpdate.description = description || categoryToUpdate.description;
+        categoryToUpdate.image = image ? image.filename : categoryToUpdate.image;
+
+        return this.categoryRepository.save(categoryToUpdate);
+
     }
 
-    // 5- remove()
-    async remove(id:number): Promise<{message: string}>{
-        const category = await this.findOne(id);
-        await this.categoryRepository.remove(category);
-        return {message: 'Category deleted successfully'};
+    // 5- remove category
+    async remove(id:number): Promise<Category>{
+        const categoryToRemove = await this.categoryRepository.findOne({
+            where: {id:id}
+        });
+
+        if (!categoryToRemove){
+            throw new NotFoundException(`category with id: ${id} Not found`);
+        }
+
+        // Delete Associated image file 
+        if (categoryToRemove.image){
+            this.deleteImageFile(`./uploads/categories/${categoryToRemove.image}`);
+        }
+        
+        return this.categoryRepository.remove(categoryToRemove);
     }
+
+    private deleteImageFile(filePath: string): void{
+        try{
+            if (fs.existsSync(filePath)){
+                fs.unlinkSync(filePath);
+            }
+        }catch(error){
+            console.error('Error Deleting image file:',error);
+        }
+    }
+
 }

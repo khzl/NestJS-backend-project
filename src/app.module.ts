@@ -7,6 +7,12 @@ import { ConfigModule , ConfigService } from '@nestjs/config'; // global can you
 import { UsersModule } from './users/users.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
+import { ProductImagesModule } from './product_images/product_images.module';
+import { User } from './users/entities/user.entity';
+import { Category } from './categories/entities/category.entity';
+import { Products } from './products/entities/product.entity';
+import { ProductImages } from './product_images/entities/product_images.entity';
+import { AuthModule } from './auth/auth.module';
 @Module({
   imports: [
     // Load File .env 
@@ -25,15 +31,17 @@ import { ProductsModule } from './products/products.module';
         username: configService.get<string>('PG_USERNAME'),
         password: configService.get<string>('PG_PASSWORD'),
         database: configService.get<string>('PG_DATABASENAME'),
+        entities: [User,Category,Products,ProductImages],
         autoLoadEntities: true,
         synchronize: true,  // Disable in production 
       }),
     }),
-
+    TypeOrmModule.forFeature([User,Category,Products,ProductImages]),
     UsersModule, // Register Users Module
     CategoriesModule, // Register Categories Module 
     ProductsModule, // Register Products Module
-
+    ProductImagesModule, // Register Product Images Module 
+    AuthModule, // Register Auth Module
   ],
   controllers: [AppController],
   providers: [AppService , ConfigTestService],

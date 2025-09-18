@@ -1,24 +1,25 @@
-import { IsString, MinLength, IsNumber, IsInt, Min , IsOptional } from 'class-validator';
-
+import { IsString, IsNumber, IsNotEmpty, IsOptional, MaxLength, ValidateNested} from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateProductImagesDto } from 'src/product_images/dto/create-product_images.dto';
 export class CreateProductDto {
+
   @IsString()
-  @MinLength(3)
+  @IsNotEmpty()
   name: string;
 
   @IsString()
-  @MinLength(5)
   @IsOptional()
-  desc?: string;
+  @MaxLength(500)
+  description?: string;
 
   @IsNumber()
-  @Min(0)
   price: number;
 
-  @IsInt()
-  @Min(0)
+  @IsNumber()
   stock: number;
 
-  @IsInt()
   @IsOptional()
-  categoryId?: number; 
+  @IsNumber()
+  categoryId?: number;
+  
 }

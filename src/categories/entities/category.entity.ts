@@ -6,24 +6,32 @@ import {
     UpdateDateColumn,
     OneToMany
 } from "typeorm";
-import { Product } from "src/products/entities/product.entity";
+import { Products } from "src/products/entities/product.entity";
 
 // Decorator class 
 @Entity('categories')
 export class Category{
+    
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({length: 100})
+    @Column({type: 'varchar' , length: 100})
     name: string;
 
-    // Link One To Many => products
-    @OneToMany(() => Product, (product) => product.category)
-    products?: Product[];
+    @Column({type: 'text' , nullable: true})
+    description: string;
     
+    @Column({ nullable : true})
+    image: string; // new field for image path
+
     @CreateDateColumn()
     createdAt: Date;
 
     @UpdateDateColumn()
     updatedAt : Date;
+
+    // Link One To Many => products
+    @OneToMany(() => Products, product => product.category)
+    products: Products[];
+    
 }
