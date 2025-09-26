@@ -6,13 +6,36 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
 import { Category } from "./entities/category.entity";
+import { ApiTags,ApiOperation,ApiResponse,
+    ApiConsumes,ApiBody,ApiParam,
+ } from "@nestjs/swagger";
+
+@ApiTags('Categories')
 @Controller('categories')
 export class CategoriesController{
     constructor(private readonly categoriesService: CategoriesService){}
 
     
-    // 1- create category
+// 1- create category
 @Post()
+@ApiOperation({ summary: 'Create a new category (with optional image)' })
+@ApiConsumes('multipart/form-data')
+@ApiBody({
+    description: 'Category data with optional image upload',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Electronics' },
+        description: { type: 'string', example: 'Devices and gadgets' },
+        image: {
+          type: 'string',
+          format: 'binary',
+          description: 'Optional category image (jpg, png, jpeg, gif)',
+        },
+      },
+    },
+})
+@ApiResponse({ status: 201, description: 'Category created successfully', type: Category })
 @UseInterceptors(FileInterceptor('image' , {
         storage: diskStorage ({
         destination: './uploads/categories',
@@ -38,22 +61,48 @@ async create(@Body() createCategoryDto: CreateCategoryDto,
 }
 
 
-    // 2- get all 
-    @Get()
-    async getAll(){
-        return this.categoriesService.GetAll();
-    }
+// 2- get all 
+@Get()
+@ApiOperation({ summary: 'Get all categories' })
+@ApiResponse({ status: 200, description: 'List of categories', type: [Category] })
+async getAll(){
+    return this.categoriesService.GetAll();
+}
 
-    // 3- get One Category
-    @Get(':id')
-    async getOne(@Param('id' , ParseIntPipe) id: number): Promise<Category>{
-        return this.categoriesService.GetOne(id);
-    }
+// 3- get One Category
+@Get(':id')
+@ApiOperation({ summary: 'Get category by ID' })
+@ApiParam({ name: 'id', type: Number, description: 'Category ID' })
+@ApiResponse({ status: 200, description: 'Category found', type: Category })
+@ApiResponse({ status: 404, description: 'Category not found' })
+async getOne(@Param('id' , ParseIntPipe) id: number): Promise<Category>{
+    return this.categoriesService.GetOne(id);
+}
 
 
-    // 4- update category
-    @Patch(':id')
-    @UseInterceptors(FileInterceptor('image',{
+// 4- update category
+@Patch(':id')
+@ApiOperation({ summary: 'Update category details (with optional new image)' })
+@ApiParam({ name: 'id', type: Number, description: 'Category ID' })
+@ApiConsumes('multipart/form-data')
+@ApiBody({
+    description: 'Category update data with optional image',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Updated Electronics' },
+        description: { type: 'string', example: 'Updated devices and gadgets' },
+        image: {
+          type: 'string',
+          format: 'binary',
+          description: 'Optional updated image',
+        },
+      },
+    },
+})
+@ApiResponse({ status: 200, description: 'Category updated successfully', type: Category })
+@ApiResponse({ status: 404, description: 'Category not found' })
+@UseInterceptors(FileInterceptor('image',{
         storage: diskStorage({
             destination: './uploads/categories',
             filename: (request,file,callback) => {
@@ -62,11 +111,11 @@ async create(@Body() createCategoryDto: CreateCategoryDto,
                 callback(null,`${uniqueName}${ext}`);
             },
         }),
-    }))
-    async update(
-     @Param('id' , ParseIntPipe) id: number,
-     @Body() updateCategoryDto: UpdateCategoryDto,
-     @UploadedFile(
+}))
+async update(
+@Param('id' , ParseIntPipe) id: number,
+@Body() updateCategoryDto: UpdateCategoryDto,
+@UploadedFile(
         new ParseFilePipe({
             validators: [
                 new MaxFileSizeValidator({maxSize: 5 * 1024 * 1024}),
@@ -77,15 +126,19 @@ async create(@Body() createCategoryDto: CreateCategoryDto,
      )
      image?: Express.Multer.File,
     ): Promise<Category>
-    {
-        return this.categoriesService.update(id,updateCategoryDto,image);
-    }
+{
+    return this.categoriesService.update(id,updateCategoryDto,image);
+}
 
-    // 5- delete category
-    @Delete(':id')
-    @HttpCode(HttpStatus.NO_CONTENT)
-    async remove(@Param('id' , ParseIntPipe) id: number): Promise<void>{
-        await this.categoriesService.remove(id);
-    }
+// 5- delete category
+@Delete(':id')
+@ApiOperation({ summary: 'Delete category by ID' })
+@ApiParam({ name: 'id', type: Number, description: 'Category ID' })
+@ApiResponse({ status: 204, description: 'Category deleted successfully' })
+@ApiResponse({ status: 404, description: 'Category not found' })
+@HttpCode(HttpStatus.NO_CONTENT)
+async remove(@Param('id' , ParseIntPipe) id: number): Promise<void>{
+    await this.categoriesService.remove(id);
+}
 
 }
